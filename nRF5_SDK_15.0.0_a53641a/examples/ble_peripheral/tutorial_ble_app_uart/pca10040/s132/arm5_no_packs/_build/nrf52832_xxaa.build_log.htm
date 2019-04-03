@@ -1,0 +1,81 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¦ÌVision V5.23.0.0
+Copyright (C) 2017 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: t yons, t, LIC=MPP56-D6PXD-HJ96M-XQPV9-UTX5A-EW3DX
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Plus  Version: 5.23
+Toolchain Path:  C:\Keil_v5\ARM\ARMCC\Bin
+C Compiler:      Armcc.exe V5.06 update 4 (build 422)
+Assembler:       Armasm.exe V5.06 update 4 (build 422)
+Linker/Locator:  ArmLink.exe V5.06 update 4 (build 422)
+Library Manager: ArmAr.exe V5.06 update 4 (build 422)
+Hex Converter:   FromElf.exe V5.06 update 4 (build 422)
+CPU DLL:         
+Dialog DLL:      
+Target DLL:      Segger\JL2CM3.dll V2.99.23.0
+Dialog DLL:      TCM.DLL V1.27.0.0
+ 
+<h2>Project:</h2>
+D:\prj\04_NRF52832\sdk\nRF5_SDK_15.0.0_a53641a\examples\ble_peripheral\tutorial_ble_app_uart\pca10040\s132\arm5_no_packs\ble_app_uart_pca10040_s132.uvprojx
+Project File Date:  03/15/2019
+
+<h2>Output:</h2>
+*** Using Compiler 'V5.06 update 4 (build 422)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
+Build target 'nrf52832_xxaa'
+compiling main.c...
+..\..\..\main.c(145): warning:  #188-D: enumerated type mixed with another type
+  	spi_config.mode = NRF_SPI_MODE_1;
+..\..\..\main.c(275): warning:  #167-D: argument of type "int8_t *" is incompatible with parameter of type "const char *restrict"
+  					data = strtok((char*)&p_evt->params.rx_data.p_data[2], p);
+..\..\..\main.c(278): warning:  #167-D: argument of type "int8_t *" is incompatible with parameter of type "const char *restrict"
+  						data = strtok(
+ULL, p);
+..\..\..\main.c(319): warning:  #111-D: statement is unreachable
+  	  length = m_ble_nus_max_data_len;
+..\..\..\main.c(647): warning:  #40-D: expected an identifier
+  #ifdef 0	
+..\..\..\main.c(52): warning:  #177-D: variable "g_CapBuf"  was declared but never referenced
+  static uint8_t g_CapBuf[MAX_SPI_BUF] = {0};
+..\..\..\main.c: 6 warnings, 0 errors
+linking...
+Program Size: Code=32576 RO-data=4216 RW-data=508 ZI-data=36044  
+FromELF: creating hex file...
+".\_build\nrf52832_xxaa.axf" - 0 Error(s), 6 Warning(s).
+
+<h2>Software Packages used:</h2>
+
+Package Vendor: ARM
+                http://www.keil.com/pack/ARM.CMSIS.4.5.0.pack
+                ARM::CMSIS:CORE:4.3.0
+                CMSIS (Cortex Microcontroller Software Interface Standard)
+   * Component: CORE Version: 4.3.0
+
+Package Vendor: NordicSemiconductor
+                http://developer.nordicsemi.com/nRF5_SDK/pieces/nRF_DeviceFamilyPack/NordicSemiconductor.nRF_DeviceFamilyPack.8.16.0.pack
+                NordicSemiconductor::Device:Startup:8.16.0
+                Nordic Semiconductor nRF ARM devices Device Family Pack.
+   * Component: Startup Version: 8.16.0
+
+<h2>Collection of Component include folders:</h2>
+  .\RTE\_nrf52832_xxaa
+  C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.5.0\CMSIS\Include
+  C:\Keil_v5\ARM\PACK\NordicSemiconductor\nRF_DeviceFamilyPack\8.16.0\Device\Include
+  C:\Keil_v5\ARM\PACK\NordicSemiconductor\nRF_DeviceFamilyPack\8.17.0\Device\Include
+
+<h2>Collection of Component Files used:</h2>
+
+   * Component: ARM::CMSIS:CORE:4.3.0
+
+   * Component: NordicSemiconductor::Device:Startup:8.16.0
+      Include file:  Device\Include\system_nrf52.h
+      Source file:   Device\Source\system_nrf52.c
+      Source file:   Device\Source\arm\arm_startup_nrf52.s
+Build Time Elapsed:  00:00:02
+</pre>
+</body>
+</html>
