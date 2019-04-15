@@ -24,7 +24,7 @@
 #define SPI_INSTANCE  0 /**< SPI instance index. */
 
 //ble
-#define N_CAP_NODE    6
+#define N_CAP_NODE    4
 #define MAX_BLE_BUF   MAX_SPI_BUF
 #define MAX_BLE2APP_CNT  (CAP_ONE_TIME_BUF_LEN * N_CAP_NODE)/MAX_BLE_BUF
 

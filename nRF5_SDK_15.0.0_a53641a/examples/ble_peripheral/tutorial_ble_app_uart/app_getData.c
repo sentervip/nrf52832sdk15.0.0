@@ -7,7 +7,7 @@
 extern uint8_t g_CapFlag;
 
 //sadc预设值和实际值
-int16_t  g_levelData[2][N_CAP_NODE] ={{5,50,100,300},{0,0,0,0}};
+int16_t  g_levelData[2][N_CAP_NODE] ={{0},{0}};
 uint8_t  g_CurrentLevel = 0;
 TagAppAdc  g_str_app_adc = {NRF_DRV_TIMER_INSTANCE(1),{0},NRF_PPI_CHANNEL0,0,0, &g_levelData[0][0]};
 
@@ -114,5 +114,17 @@ void saadc_init(void)
    // APP_ERROR_CHECK(err_code);  // mask by aizj
 
 }
-
-
+void saadc_init2(void)
+{
+    ret_code_t err_code;
+  
+    nrf_saadc_channel_config_t channel_config =
+        NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN6);
+    err_code = nrf_drv_saadc_init(NULL, saadc_callback);
+    APP_ERROR_CHECK(err_code);
+}
+int16_t saadc_getData(void)
+{
+//	nrfx_saadc_sample_convert(NRF_SAADC_INPUT_AIN6,g_levelData[0][0]);
+	return g_levelData[0][0];
+}

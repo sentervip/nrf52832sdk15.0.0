@@ -278,7 +278,7 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 						data = strtok(NULL, p);
 						j++;	
 					}
-					NRF_LOG_INFO("ble cmd[%d,%d,%d,%d,%d,%d]",g_levelData[0][0],g_levelData[0][1],\
+					//NRF_LOG_INFO("ble cmd[%d,%d,%d,%d,%d,%d]",g_levelData[0][0],g_levelData[0][1],\
 					g_levelData[0][2],g_levelData[0][3],g_levelData[0][4],g_levelData[0][5]);
 					
 					//start capture
@@ -1084,7 +1084,7 @@ int main(void)
 		//s1 over enable fpga
 		if(g_CapFlag == 1){
 			NRF_LOG_INFO("step1:csL\n");
-			nrf_delay_us(40);
+			nrf_delay_us(50);
 		    FPGA_READ_CS_H;
 			g_CapFlag = 2;
 			
