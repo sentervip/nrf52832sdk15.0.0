@@ -63,6 +63,7 @@ extern uint8_t  g_CurrentLevel ;
 extern int16_t  g_levelData[2][N_CAP_NODE];
 extern uint8_t g_save[];
 void saadc_init(void);
+int16_t saadc_getData(void);
 void saadc_sampling_event_init(void);
 void saadc_sampling_event_enable(void);
 void saadc_sampling_event_disable(void);

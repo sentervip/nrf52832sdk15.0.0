@@ -114,17 +114,36 @@ void saadc_init(void)
    // APP_ERROR_CHECK(err_code);  // mask by aizj
 
 }
+void saadc_callback2(nrf_drv_saadc_evt_t const * p_event)
+{
+}
 void saadc_init2(void)
 {
     ret_code_t err_code;
   
+    
     nrf_saadc_channel_config_t channel_config =
-        NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN6);
-    err_code = nrf_drv_saadc_init(NULL, saadc_callback);
+        NRFX_SAADC_DEFAULT_CHANNEL_CONFIG_SE_Z1(NRF_SAADC_INPUT_AIN6);
+
+    err_code = nrf_drv_saadc_init(NULL, saadc_callback2);
     APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_saadc_channel_init(0, &channel_config);
+    APP_ERROR_CHECK(err_code);
+	
 }
 int16_t saadc_getData(void)
 {
-//	nrfx_saadc_sample_convert(NRF_SAADC_INPUT_AIN6,g_levelData[0][0]);
+	ret_code_t err_code;
+	
+	for(int i=0;i<1;i++){
+		err_code = nrfx_saadc_sample_convert(NRF_SAADC_INPUT_AIN6,&g_levelData[0][i]);
+		APP_ERROR_CHECK(err_code);
+		//g_levelData[0][0] = g_levelData[0][0]*3/1024;
+		//NRF_LOG_INFO("adc: %d,code=%d",g_levelData[0][i],err_code);
+		//printf("adc: %d,code=%d\n",g_levelData[0][i],err_code);
+	}
+	
+	
 	return g_levelData[0][0];
 }

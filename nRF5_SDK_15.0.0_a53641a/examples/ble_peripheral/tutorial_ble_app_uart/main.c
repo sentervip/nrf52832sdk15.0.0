@@ -44,7 +44,7 @@
 #define CONN_INTERVAL_OPTIMIZE    //optimize connection interval
 #define EVT_LEN_EXT_ON           //enable connection event length extension so as to send multiple packets in one connection interval
 #define DLE_ON   //open data length extension    
-
+#define Z1_RTP 1
 
 
 static const nrf_drv_spi_t Spi0 = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /**< SPI instance 0. */
@@ -151,8 +151,8 @@ int SpiRead(uint8_t *pData, uint8_t len )
 	ret_code_t iRet;
 	SPI_CS_L;
 	iRet = nrf_drv_spi_transfer(&Spi0, 0, 0, pData, len);
+	//nrf_delay_us( 2 * len + 10);
 	nrf_delay_us( 2 * len + 10);
-	//nrf_delay_us( len/2 + 10);
 	SPI_CS_H;
     if(iRet != NRF_SUCCESS){
 	    printf("spi read failed");
@@ -165,7 +165,7 @@ int SpiWrite(uint8_t *pData,uint16_t len)
 	ret_code_t iRet;
 	SPI_CS_L;
 	iRet = nrf_drv_spi_transfer(&Spi0,  pData, len, NULL, 0);
-	nrf_delay_us(12);
+	nrf_delay_us(20); //12
 	SPI_CS_H;
 	if(iRet != NRF_SUCCESS){
 	    printf("spi write failed");
@@ -282,8 +282,13 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 					g_levelData[0][2],g_levelData[0][3],g_levelData[0][4],g_levelData[0][5]);
 					
 					//start capture
+	#ifdef Z1_RTP
+					captrue_cmd(RESET_ALL);
+					captrue_cmd(START_CAP);
+	#else				
 					captrue_cmd(RESET_ALL);
 					captrue_cmd(ENABLE_ADC);
+	#endif
 					return;
 					
 								 // FPGA_READ_CS_L;										
@@ -532,7 +537,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             // LED indication will be changed when advertising starts.
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 			HVOL_SET_L;
-			captrue_cmd(RESET_ALL);
+			captrue_cmd(RESET_ALL);  m_cnt_7ms = 0;// for test by aizj
             break;
 #ifdef DLE_ON
         case BLE_GAP_EVT_DATA_LENGTH_UPDATE_REQUEST:
@@ -1064,7 +1069,7 @@ int main(void)
     conn_params_init();
 
     //throughput_test();
-	  NRF_LOG_INFO("SPIS init");
+	NRF_LOG_INFO("SPIS init");
 	
 	 
 		
@@ -1074,23 +1079,64 @@ int main(void)
     advertising_start();
     
 	//adc init
-    saadc_init();
+#ifdef Z1_RTP	
+	//saadc_init2();
+	//captrue_cmd(RESET_ALL);
+	
+#else	
+	saadc_init();
     saadc_sampling_event_init();
-	saadc_sampling_event_enable();	
-	captrue_cmd(RESET_ALL);
-	 
+	saadc_sampling_event_enable();
+#endif
+	 m_cnt_7ms = 0;
     for (;;)
     {
 		//s1 over enable fpga
 		if(g_CapFlag == 1){
 			NRF_LOG_INFO("step1:csL\n");
-			nrf_delay_us(50);
+			nrf_delay_us(20);
 		    FPGA_READ_CS_H;
 			g_CapFlag = 2;
 			
 		}
+#ifdef Z1_RTP		
+        //s2 read fpga
+		if(g_CapFlag == 2){
+			//saadc_getData();
+			g_saveCnt =0;
+			//for(j=0;j<MAX_SPI2APP_CNT;j++){
+			{
+				SpiRead(&g_save[g_saveCnt], MAX_SPI_BUF);					
+				g_saveCnt += MAX_SPI_BUF;	
+				//for test
+				for(i=0;i<MAX_SPI_BUF;i++)
+					printf("%d",g_save[g_saveCnt-MAX_SPI_BUF+i]);
+			}
+			g_save[CAP_ONE_TIME_BUF_LEN-2] = g_levelData[0][0] >>8;
+			g_save[CAP_ONE_TIME_BUF_LEN-1] = g_levelData[0][0] &0xff;
+			g_CapFlag = 3;
+		}
 		
-	
+		//s3 send ble
+		if( m_conn_handle != BLE_CONN_HANDLE_INVALID && g_CapFlag == 3){		
+				for(j=0,i=0;j<MAX_SPI2APP_CNT;j++){						
+					err_code = ble_nus_data_send(&m_nus, (uint8_t*)(&g_save[i]), &g_len, m_conn_handle);
+					if ( err_code != NRF_SUCCESS ){
+						NRF_LOG_INFO("ble error=0x%x", err_code);
+						break;
+						//APP_ERROR_CHECK(err_code);				
+					} 		
+					i += g_len;
+					nrf_delay_ms(50);		
+				}
+				captrue_cmd(RESET_ALL);
+				//captrue_cmd(START_CAP);
+				m_cnt_7ms++;
+				//printf("%d,",m_cnt_7ms);
+				//nrf_delay_ms(100);	
+				
+		}
+#else	
 		//s2 read data
 		if(g_CapFlag == 2 && g_FPGAReadyFlg){				                          
 			NRF_LOG_INFO("step2:radSpi");
@@ -1116,7 +1162,7 @@ int main(void)
 					
 		
 			
-			//s3 data to ble
+		//s3 data to ble
 		if( g_saveCnt >= (CAP_ONE_TIME_BUF_LEN * N_CAP_NODE) ){  
 			   if( m_conn_handle != BLE_CONN_HANDLE_INVALID ){		
 					for(j=0,i=0;j<MAX_BLE2APP_CNT;j++){						
@@ -1128,11 +1174,10 @@ int main(void)
 						i += g_len;
 						nrf_delay_ms(50);		
 					}
-					captrue_cmd(RESET_ALL);
-							
+					captrue_cmd(RESET_ALL);							
 			  }
 		 }
-						
+ #endif						
         idle_state_handle();
     }
 }
