@@ -63,7 +63,9 @@ APP_TIMER_DEF(m_bsp_alert_tmr);
 
 #if BUTTONS_NUMBER > 0
 #ifndef BSP_SIMPLE
+#ifdef METHOD2_PLUS
 extern uint8_t g_FPGAReadyFlg;
+#endif
 static bsp_event_callback_t   m_registered_callback         = NULL;
 static bsp_button_event_cfg_t m_events_list[BUTTONS_NUMBER] = {{BSP_EVENT_NOTHING, BSP_EVENT_NOTHING}};
 APP_TIMER_DEF(m_bsp_button_tmr);
@@ -163,9 +165,11 @@ static void bsp_button_event_handler(uint8_t pin_no, uint8_t button_action)
                 {
                     event = m_events_list[button].release_event;
 					          //printf("%d,release\n", pin_no);  
+					#ifdef METHOD2_PLUS
 									  if(pin_no == BUTTON_1){
 										    g_FPGAReadyFlg = 1;
 										}
+					#endif
                 }
                 break;
             case BSP_BUTTON_ACTION_LONG_PUSH:

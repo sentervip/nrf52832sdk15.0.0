@@ -50,7 +50,7 @@ extern "C" {
 #define LEDS_NUMBER    2      
 
 #define LED_START      22
-#define LED_1          22 //17
+#define LED_1          22 //14 evm  //22 marvoto
 #define LED_2          23//18
 #define LED_3          24
 #define LED_4          20

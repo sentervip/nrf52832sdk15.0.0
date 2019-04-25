@@ -20,6 +20,8 @@
 #include "nrf_drv_spi.h"
 #include <nrf_delay.h>
 #include <string.h>
+#include "nrf_drv_wdt.h"
+
 
 #if defined (UART_PRESENT)
 #include "nrf_uart.h"
@@ -46,9 +48,10 @@
 #define DLE_ON   //open data length extension    
 #define Z1_RTP 1
 
-
+nrf_drv_wdt_channel_id m_channel_id;
 static const nrf_drv_spi_t Spi0 = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /**< SPI instance 0. */
-uint8_t g_CapFlag = 0;  //0 or 1
+uint8_t g_CapFlag = 0;   
+uint8_t g_StopFlag = 0;  //0 or 1
 static uint8_t g_CapBuf[MAX_SPI_BUF] = {0};
 uint8_t g_save[CAP_ONE_TIME_BUF_LEN * N_CAP_NODE] = {0};
 static uint32_t g_saveCnt = 0;
@@ -64,7 +67,7 @@ uint32_t m_cnt_10ms;
 
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
-#define DEVICE_NAME                     "MT_Z1"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "MT_Z3"                               /**< Name of device. Will be included in the advertising data. */
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
 
 #define APP_BLE_OBSERVER_PRIO           3                                           /**< Application's BLE observer priority. You shouldn't need to modify this value. */
@@ -152,7 +155,7 @@ int SpiRead(uint8_t *pData, uint8_t len )
 	SPI_CS_L;
 	iRet = nrf_drv_spi_transfer(&Spi0, 0, 0, pData, len);
 	//nrf_delay_us( 2 * len + 10);
-	nrf_delay_us( 2 * len + 10);
+	nrf_delay_us( len*2+100 ); //len=50
 	SPI_CS_H;
     if(iRet != NRF_SUCCESS){
 	    printf("spi read failed");
@@ -294,8 +297,12 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 								 // FPGA_READ_CS_L;										
 								 // g_FPGAReadyFlg = 0;	
 								  //saadc_sampling_event_enable();								  
-								  //g_CapFlag = 1;						
-				 }
+								  //g_CapFlag = 1;		
+				//stop captrue
+				}else if(p_evt->params.rx_data.p_data[0] == 'E' && p_evt->params.rx_data.p_data[1] == 'E'){	
+						captrue_cmd(STOP_CAP);
+						return;
+				}
 								 //end z1
 								 
                 //err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
@@ -996,6 +1003,7 @@ void captrue_cmd(uint8_t type)
 			g_CapFlag = 1;			
 			break;
 		case STOP_CAP:
+			g_StopFlag = 1;
 			g_str_app_adc.locked = DISABLE;
 			nrf_drv_timer_disable(&g_str_app_adc.timer);
 			break;		
@@ -1044,6 +1052,8 @@ for (;;){
 }
 	
 }
+void bsp_event_callback(bsp_event_t event)
+{}
 /**@brief Application main function.
  */
 int main(void)
@@ -1077,7 +1087,15 @@ int main(void)
     printf("\r\nUART started.\r\n");
     NRF_LOG_INFO("Debug logging for UART over RTT started.");
     advertising_start();
-    
+	
+    //Configure WDT.
+    //nrf_drv_wdt_config_t config = NRF_DRV_WDT_DEAFULT_CONFIG;
+    //err_code = nrf_drv_wdt_init(&config, wdt_event_handler);
+    //APP_ERROR_CHECK(err_code);
+    //err_code = nrf_drv_wdt_channel_alloc(&m_channel_id);
+    //APP_ERROR_CHECK(err_code);
+    //nrf_drv_wdt_enable();
+	
 	//adc init
 #ifdef Z1_RTP	
 	//saadc_init2();
@@ -1093,8 +1111,8 @@ int main(void)
     {
 		//s1 over enable fpga
 		if(g_CapFlag == 1){
-			NRF_LOG_INFO("step1:csL\n");
-			nrf_delay_us(20);
+			printf("step1:csL\n");
+			nrf_delay_us(20); 
 		    FPGA_READ_CS_H;
 			g_CapFlag = 2;
 			
@@ -1104,37 +1122,43 @@ int main(void)
 		if(g_CapFlag == 2){
 			//saadc_getData();
 			g_saveCnt =0;
-			//for(j=0;j<MAX_SPI2APP_CNT;j++){
-			{
-				SpiRead(&g_save[g_saveCnt], MAX_SPI_BUF);					
+			memset(g_save,0,50);
+			for(j=0;j<MAX_SPI2APP_CNT;j++){
+				SpiRead(&g_save[g_saveCnt], MAX_SPI_BUF);		 	
 				g_saveCnt += MAX_SPI_BUF;	
 				//for test
-				for(i=0;i<MAX_SPI_BUF;i++)
-					printf("%d",g_save[g_saveCnt-MAX_SPI_BUF+i]);
+				//for(i=0;i<MAX_SPI_BUF;i++){
+				//printf("cnt=%d,%d,%d,",j,g_save[g_saveCnt-MAX_SPI_BUF],g_save[g_saveCnt-1]);	
+				nrf_delay_ms(1);
+				//}
+				
 			}
-			g_save[CAP_ONE_TIME_BUF_LEN-2] = g_levelData[0][0] >>8;
-			g_save[CAP_ONE_TIME_BUF_LEN-1] = g_levelData[0][0] &0xff;
+			//printf("cnt=%d\n",g_saveCnt);
+			//g_save[CAP_ONE_TIME_BUF_LEN-2] = g_levelData[0][0] >>8;
+			//g_save[CAP_ONE_TIME_BUF_LEN-1] = g_levelData[0][0] &0xff;
 			g_CapFlag = 3;
 		}
 		
-		//s3 send ble
-		if( m_conn_handle != BLE_CONN_HANDLE_INVALID && g_CapFlag == 3){		
-				for(j=0,i=0;j<MAX_SPI2APP_CNT;j++){						
-					err_code = ble_nus_data_send(&m_nus, (uint8_t*)(&g_save[i]), &g_len, m_conn_handle);
+		//s3 send ble		
+		if( m_conn_handle != BLE_CONN_HANDLE_INVALID && g_CapFlag == 3 && !g_StopFlag){	
+				for(j=0,i=0;j<MAX_BLE2APP_CNT;j++){	
+					err_code = ble_nus_data_send(&m_nus, (uint8_t*)(&g_save[i]), &g_len, m_conn_handle); 
 					if ( err_code != NRF_SUCCESS ){
-						NRF_LOG_INFO("ble error=0x%x", err_code);
-						break;
-						//APP_ERROR_CHECK(err_code);				
+						printf("ble error=%ld", err_code);
+					    APP_ERROR_CHECK(err_code);				
 					} 		
-					i += g_len;
+					i += MAX_BLE_BUF;
 					nrf_delay_ms(50);		
 				}
 				captrue_cmd(RESET_ALL);
-				//captrue_cmd(START_CAP);
+			    captrue_cmd(START_CAP);
 				m_cnt_7ms++;
-				//printf("%d,",m_cnt_7ms);
-				//nrf_delay_ms(100);	
-				
+				printf("%d,",m_cnt_7ms);
+				//nrf_delay_ms(10);				
+		}else if(g_StopFlag){
+			captrue_cmd(RESET_ALL);
+			g_StopFlag = 0;
+			m_cnt_7ms = 0;
 		}
 #else	
 		//s2 read data
@@ -1144,9 +1168,7 @@ int main(void)
 				//SpiRead(&g_save[g_saveCnt],MAX_SPI_BUF);
 				SpiRead(&g_save[g_saveCnt], MAX_SPI_BUF);					
 				//memcpy((uint8_t*) (&g_save[g_saveCnt]), g_CapBuf, MAX_SPI_BUF );
-				g_saveCnt += MAX_SPI_BUF;	
-
-				
+				g_saveCnt += MAX_SPI_BUF;					
 			}
 			if(g_str_app_adc.levelEnable != ALL_LEVEL){
 				captrue_cmd(RESET_CAP);
@@ -1156,8 +1178,7 @@ int main(void)
 			//append pressure data
 	  	    g_save[g_saveCnt-2] = g_levelData[1][g_CurrentLevel] >>8;
 		    g_save[g_saveCnt-1] = g_levelData[1][g_CurrentLevel] &0xff;
-			NRF_LOG_INFO("read offset=%d", g_saveCnt);
-			
+			NRF_LOG_INFO("read offset=%d", g_saveCnt);		
 		}
 					
 		
