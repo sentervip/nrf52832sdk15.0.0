@@ -1111,7 +1111,7 @@ int main(void)
     {
 		//s1 over enable fpga
 		if(g_CapFlag == 1){
-			printf("step1:csL\n");
+			//printf("step1:csL\n");
 			nrf_delay_us(20); 
 		    FPGA_READ_CS_H;
 			g_CapFlag = 2;
@@ -1122,7 +1122,7 @@ int main(void)
 		if(g_CapFlag == 2){
 			//saadc_getData();
 			g_saveCnt =0;
-			memset(g_save,0,50);
+			//memset(g_save,0,50);
 			for(j=0;j<MAX_SPI2APP_CNT;j++){
 				SpiRead(&g_save[g_saveCnt], MAX_SPI_BUF);		 	
 				g_saveCnt += MAX_SPI_BUF;	
@@ -1141,19 +1141,26 @@ int main(void)
 		
 		//s3 send ble		
 		if( m_conn_handle != BLE_CONN_HANDLE_INVALID && g_CapFlag == 3 && !g_StopFlag){	
+			for(j=0;j<(CAP_ONE_TIME_BUF_LEN * N_CAP_NODE);j+=2){
+				g_save[j] = j >>8;
+				g_save[j+1] = j &0xff;
+			}
+			
 				for(j=0,i=0;j<MAX_BLE2APP_CNT;j++){	
 					err_code = ble_nus_data_send(&m_nus, (uint8_t*)(&g_save[i]), &g_len, m_conn_handle); 
 					if ( err_code != NRF_SUCCESS ){
 						printf("ble error=%ld", err_code);
-					    APP_ERROR_CHECK(err_code);				
+						--j;
+						nrf_delay_ms(10);
+						continue;// APP_ERROR_CHECK(err_code);				
 					} 		
 					i += MAX_BLE_BUF;
-					nrf_delay_ms(50);		
+					nrf_delay_ms(5);		
 				}
 				captrue_cmd(RESET_ALL);
 			    captrue_cmd(START_CAP);
 				m_cnt_7ms++;
-				printf("%d,",m_cnt_7ms);
+				printf("cnt=%d,",m_cnt_7ms);
 				//nrf_delay_ms(10);				
 		}else if(g_StopFlag){
 			captrue_cmd(RESET_ALL);
