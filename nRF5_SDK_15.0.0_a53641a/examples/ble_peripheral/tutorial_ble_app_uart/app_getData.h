@@ -18,14 +18,14 @@
 //spi
 #define SPI2APP_CACHE  1
 #define SPI2APP       1
-#define CAP_ONE_TIME_BUF_LEN  (3000*2) //1952
-#define MAX_SPI_BUF   50              //244
+#define CAP_ONE_TIME_BUF_LEN  (1952*2) //1952
+#define MAX_SPI_BUF   244              //244
 #define MAX_SPI2APP_CNT   (CAP_ONE_TIME_BUF_LEN / MAX_SPI_BUF )
 #define SPI_INSTANCE  0 /**< SPI instance index. */
 
 //ble
 #define N_CAP_NODE    4
-#define MAX_BLE_BUF   200 //MAX_SPI_BUF
+#define MAX_BLE_BUF   244 //MAX_SPI_BUF
 #define MAX_BLE2APP_CNT  (CAP_ONE_TIME_BUF_LEN /MAX_BLE_BUF)
 
 //sadc

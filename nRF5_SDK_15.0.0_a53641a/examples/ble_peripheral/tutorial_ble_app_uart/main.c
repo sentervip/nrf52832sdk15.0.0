@@ -50,13 +50,15 @@
 
 nrf_drv_wdt_channel_id m_channel_id;
 static const nrf_drv_spi_t Spi0 = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /**< SPI instance 0. */
+static uint8_t spi_xfer_done = false;
 uint8_t g_CapFlag = 0;   
 uint8_t g_StopFlag = 0;  //0 or 1
 static uint8_t g_CapBuf[MAX_SPI_BUF] = {0};
 uint8_t g_save[CAP_ONE_TIME_BUF_LEN * N_CAP_NODE] = {0};
 static uint32_t g_saveCnt = 0;
+static uint32_t g_tx_index = 0;
 uint8_t  g_FPGAReadyFlg = 0;
-static 
+uint16_t g_len = MAX_BLE_BUF; 
 
 //nus
 uint8_t m_data_array[251];
@@ -67,7 +69,7 @@ uint32_t m_cnt_10ms;
 
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
-#define DEVICE_NAME                     "MT_Z3"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "MT_Z4"                               /**< Name of device. Will be included in the advertising data. */
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
 
 #define APP_BLE_OBSERVER_PRIO           3                                           /**< Application's BLE observer priority. You shouldn't need to modify this value. */
@@ -120,7 +122,8 @@ static ble_uuid_t m_adv_uuids[]          =                                      
 void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
                        void *                    p_context)
 {
-    //spi_xfer_done = true;
+	
+    spi_xfer_done = true;
    ;// printf("callback spi.");
    // if (m_rx_buf[0] != 0)
    // {
@@ -152,13 +155,18 @@ void SpiInit(void)
 int SpiRead(uint8_t *pData, uint8_t len )
 {
 	ret_code_t iRet;
+	uint8_t txBuf[2];
+	
 	SPI_CS_L;
-	iRet = nrf_drv_spi_transfer(&Spi0, 0, 0, pData, len);
-	//nrf_delay_us( 2 * len + 10);
-	nrf_delay_us( len*2+100 ); //len=50
+	iRet = nrf_drv_spi_transfer(&Spi0, txBuf, 1, pData, len);
+	while (!spi_xfer_done)
+	{
+		nrf_delay_us(2);
+	}
+	spi_xfer_done = false;
 	SPI_CS_H;
-    if(iRet != NRF_SUCCESS){
-	    printf("spi read failed");
+  if(iRet != NRF_SUCCESS){
+	   printf("spi read failed");
 	}
 	return iRet;
 }
@@ -168,7 +176,11 @@ int SpiWrite(uint8_t *pData,uint16_t len)
 	ret_code_t iRet;
 	SPI_CS_L;
 	iRet = nrf_drv_spi_transfer(&Spi0,  pData, len, NULL, 0);
-	nrf_delay_us(20); //12
+	while (!spi_xfer_done)
+	{
+		nrf_delay_us(2);
+		
+	}
 	SPI_CS_H;
 	if(iRet != NRF_SUCCESS){
 	    printf("spi write failed");
@@ -254,19 +266,13 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
 /**@snippet [Handling the data received over BLE] */
 static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
+	uint32_t err_code;
     static unsigned int g_cnt;
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
     {
         uint32_t err_code;
 
-        
-        //NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
-
-       // for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
-       // {
-            do
-            {
-							
+        							
 				//add for z1 by aizj  get cmd start captrue
 				if(p_evt->params.rx_data.p_data[0] == 'E' && p_evt->params.rx_data.p_data[1] == 'F'){		
 		
@@ -288,6 +294,7 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 	#ifdef Z1_RTP
 					captrue_cmd(RESET_ALL);
 					captrue_cmd(START_CAP);
+					
 	#else				
 					captrue_cmd(RESET_ALL);
 					captrue_cmd(ENABLE_ADC);
@@ -312,20 +319,36 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
                 //    
 				//	APP_ERROR_CHECK(err_code);
                 //}
-            } while (err_code == NRF_ERROR_BUSY);
+        //    }
        // }
         //if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
         //{
         //    while (app_uart_put('\n') == NRF_ERROR_BUSY);
-        //}
+        //}  
+				//|| (p_evt->type == BLE_NUS_EVT_COMM_STARTED)
     }
-	
+
+	 if( p_evt->type == BLE_NUS_EVT_TX_RDY  || (p_evt->type == BLE_NUS_EVT_COMM_STARTED)  ){
+		 if(g_StopFlag){
+			 return ;
+		 }
+			err_code = ble_nus_data_send(&m_nus, (uint8_t*)(&g_save[g_tx_index]), &g_len, m_conn_handle); 
+			if ( err_code == NRF_SUCCESS ){
+				g_tx_index += MAX_BLE_BUF;		
+			}					
+			if(g_tx_index == CAP_ONE_TIME_BUF_LEN)	{		
+				captrue_cmd(RESET_ALL);	
+				captrue_cmd(START_CAP);	
+				//captrue_cmd(STOP_CAP);
+				g_tx_index = 0;
+			}		
+	 }
 	
 	return ; //aizj add 
 	
 	
 	
-	  uint32_t err_code;
+	  
 		uint16_t length;
 		 	 
 	  length = m_ble_nus_max_data_len;
@@ -1000,7 +1023,8 @@ void captrue_cmd(uint8_t type)
 			//g_saveCnt = 0;
 			//g_str_app_adc.locked = ENABLE;
 			//g_str_app_adc.levelEnable = 0;
-			g_CapFlag = 1;			
+			g_CapFlag = 1;	
+			g_StopFlag = 0;
 			break;
 		case STOP_CAP:
 			g_StopFlag = 1;
@@ -1062,7 +1086,7 @@ int main(void)
 	ret_code_t err_code;
 	uint16_t j;
 	int32_t i;
-	uint16_t g_len = MAX_BLE_BUF;
+	
 
     // Initialize.
 	SpiInit();
@@ -1112,7 +1136,7 @@ int main(void)
 		//s1 over enable fpga
 		if(g_CapFlag == 1){
 			//printf("step1:csL\n");
-			nrf_delay_us(20); 
+			nrf_delay_us(350); 
 		    FPGA_READ_CS_H;
 			g_CapFlag = 2;
 			
@@ -1129,44 +1153,36 @@ int main(void)
 				//for test
 				//for(i=0;i<MAX_SPI_BUF;i++){
 				//printf("cnt=%d,%d,%d,",j,g_save[g_saveCnt-MAX_SPI_BUF],g_save[g_saveCnt-1]);	
-				nrf_delay_ms(1);
-				//}
-				
+				nrf_delay_us(50);
+				//}				
 			}
 			//printf("cnt=%d\n",g_saveCnt);
 			//g_save[CAP_ONE_TIME_BUF_LEN-2] = g_levelData[0][0] >>8;
 			//g_save[CAP_ONE_TIME_BUF_LEN-1] = g_levelData[0][0] &0xff;
 			g_CapFlag = 3;
+			g_tx_index = 0;
 		}
 		
 		//s3 send ble		
-		if( m_conn_handle != BLE_CONN_HANDLE_INVALID && g_CapFlag == 3 && !g_StopFlag){	
-			for(j=0;j<(CAP_ONE_TIME_BUF_LEN * N_CAP_NODE);j+=2){
-				g_save[j] = j >>8;
-				g_save[j+1] = j &0xff;
-			}
-			
-				for(j=0,i=0;j<MAX_BLE2APP_CNT;j++){	
-					err_code = ble_nus_data_send(&m_nus, (uint8_t*)(&g_save[i]), &g_len, m_conn_handle); 
-					if ( err_code != NRF_SUCCESS ){
-						printf("ble error=%ld", err_code);
-						--j;
-						nrf_delay_ms(10);
-						continue;// APP_ERROR_CHECK(err_code);				
-					} 		
-					i += MAX_BLE_BUF;
-					nrf_delay_ms(5);		
-				}
-				captrue_cmd(RESET_ALL);
-			    captrue_cmd(START_CAP);
-				m_cnt_7ms++;
-				printf("cnt=%d,",m_cnt_7ms);
-				//nrf_delay_ms(10);				
-		}else if(g_StopFlag){
-			captrue_cmd(RESET_ALL);
-			g_StopFlag = 0;
-			m_cnt_7ms = 0;
-		}
+		//if( m_conn_handle != BLE_CONN_HANDLE_INVALID && g_CapFlag == 3 && !g_StopFlag){	
+		//	
+		//		for(j=0,i=0;j<MAX_BLE2APP_CNT;j++){	
+		//			err_code = ble_nus_data_send(&m_nus, (uint8_t*)(&g_save[i]), &g_len, m_conn_handle); 
+		//			if ( err_code == NRF_SUCCESS ){
+		//				//printf("ble error=%ld", err_code);
+		//				i += MAX_BLE_BUF;		
+		//			}else{
+		//				--j;
+		//			} 						
+		//			nrf_delay_ms(10);		
+		//		}
+		//		captrue_cmd(RESET_ALL);
+		//	    //captrue_cmd(START_CAP);
+		//		//m_cnt_7ms++;
+		//		//printf("cnt=%d,",m_cnt_7ms);
+		//		//nrf_delay_ms(10);				
+		//}else 
+		
 #else	
 		//s2 read data
 		if(g_CapFlag == 2 && g_FPGAReadyFlg){				                          
