@@ -48,7 +48,7 @@
 //spi
 #define SPI2APP_CACHE  0
 #define SPI2APP       1
-#define MAX_SPI_BUF   244//251
+#define MAX_SPI_BUF   244//244
 #define MAX_SPI2APP_CNT   (2000/MAX_SPI_BUF +1)
 #define SPI_INSTANCE  0 /**< SPI instance index. */
 static const nrf_drv_spi_t Spi0 = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /**< SPI instance 0. */
@@ -270,11 +270,12 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 								//add for z1 by aizj
 							   if(p_evt->params.rx_data.p_data[0] == 0x1B){
 										
-										printf("read\n");
+										//printf("read\n");
 										FPGA_READ_CS_L;
 										
 										g_FPGAReadyFlg = 0;	
-										g_CapFlag = 1;						
+										g_CapFlag = 1;					
+                    return ;  //  by aizj 									 
 				         }
 								 //end z1
 								 
@@ -968,21 +969,24 @@ int main(void)
     //saadc_init();
     //saadc_sampling_event_init();
     //saadc_sampling_event_enable();
-
+ 
     for (;;)
     {
 		if(g_CapFlag == 1){
 			 // nrf_delay_us(1);
-				printf("step1:csL\n");
+				NRF_LOG_INFO("step1:csL\n");
 		    FPGA_READ_CS_H;
 			  g_CapFlag = 2;
 		}
 
-		if(g_CapFlag == 2 && g_FPGAReadyFlg){	
+		if(g_CapFlag == 2){	
+			for(int i=0; i<MAX_SPI_BUF ; i++)
+			    g_CapBuf[i] = i;
 			
-			printf("\r\nstep2:read spi start!\r\n");
-			for(int j=0;j<MAX_SPI2APP_CNT;j++){
-				SpiRead(g_CapBuf, MAX_SPI_BUF);	
+			NRF_LOG_INFO("\r\nstep2:read spi start!\r\n");
+			for(int j=0;j<200;j++){
+				//SpiRead(g_CapBuf, MAX_SPI_BUF);	
+				
 				
 #if SPI2APP_CACHE
 				memcpy((char*) (g_save+j*MAX_SPI_BUF), g_CapBuf, MAX_SPI_BUF );
@@ -992,12 +996,12 @@ int main(void)
 				if( m_conn_handle != BLE_CONN_HANDLE_INVALID){
 					err_code = ble_nus_data_send(&m_nus, g_CapBuf, &g_CapCnt, m_conn_handle);
 					if ( err_code != NRF_SUCCESS ){
-						printf("ble error=0x%x", err_code);
+						NRF_LOG_INFO("ble tx error=0x%x", err_code);
 						APP_ERROR_CHECK(err_code);				
 					} 		
-					nrf_delay_ms(50);
+					nrf_delay_ms(30);
 				}else{
-					NRF_LOG_INFO("ble disconnected \n");
+					NRF_LOG_INFO("ble tx disconnected \n");
 					break;
 				}
 		 }//end for(int j=0;
